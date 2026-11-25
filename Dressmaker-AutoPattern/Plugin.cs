@@ -10,7 +10,7 @@ using UnityEngine.UI;
 
 namespace Dressmaker_AutoPattern
 {
-    [BepInPlugin("ambrosia.dressmaker.autopattern", "Auto Pattern", "0.1.0")]
+    [BepInPlugin("ambrosia.dressmaker.autopattern", "Auto Pattern", "0.1.1")]
     [BepInDependency("yuu.dressmaker.mods")]
     public class Plugin : BaseUnityPlugin
     {
@@ -55,7 +55,7 @@ namespace Dressmaker_AutoPattern
         public void PlacePatternsOnTable()
         {
             var panels = FindUncutPatternsInInventory();
-
+            Logger.LogInfo($"children {SideBarPanelInventory.GetChildObjects().Count()} ");
             foreach (var item in panels)
             {
                 SideBarPanelInventory.GetChildObjects().FirstOrDefault(x => x.name.Contains(item.name)).SetActive(false);
@@ -84,18 +84,26 @@ namespace Dressmaker_AutoPattern
 
         public List<PatternPanel> FindUncutPatternsInInventory()
         {
-            var children = SideBarPanelInventory.GetChildObjects().Where(x => x.activeSelf);
-            var activePanelNames = children.Select(x => x.name.Replace(" inventory button", "")).ToList();
-            var panels = DressPanelInventory.gameObject.GetChildObjects().Where(x => activePanelNames.Contains(x.name)).Select(x => x.GetComponent<PatternPanel>()).ToList();
-            foreach (var item in panels)
+            try
             {
-                Logger.LogInfo($"{item.name} {item.HasBeenCut}");
+                SetDressPanelInventory();
+                var children = SideBarPanelInventory.GetChildObjects().Where(x => x.activeSelf);
+                var activePanelNames = children.Select(x => x.name.Replace(" inventory button", "")).ToList();
+                var panels = DressPanelInventory.gameObject.GetChildObjects().Where(x => activePanelNames.Contains(x.name)).Select(x => x.GetComponent<PatternPanel>()).ToList();
+
+                return panels.Where(x => !x?.state?.hasBeenCut ?? false).ToList();
             }
-            return panels.Where(x => !x?.state?.hasBeenCut ?? false).ToList();
+            catch (Exception e)
+            {
+
+                Logger.LogInfo(e.ToString());
+            }
+            return null;
         }
 
         public List<GameObject> FindPatternsOnTable()
         {
+            SetDressPanelInventory();
             var allPanels = DressPanelInventory.gameObject.GetChildObjects().ToList();
 
             Logger.LogInfo("allPanels found: " + allPanels.Count);
@@ -112,8 +120,9 @@ namespace Dressmaker_AutoPattern
 
         public void SetupAutoPattern()
         {
-            DressPanelInventory = Resources.FindObjectsOfTypeAll<Dress>().FirstOrDefault();
+            SetDressPanelInventory();
             SideBarPanelInventory = Resources.FindObjectsOfTypeAll<GameObject>().Where(x => x.name == PanelInventoryName).FirstOrDefault();
+            Logger.LogInfo($"{DressPanelInventory.name} {SideBarPanelInventory.name}");
             if (DressPanelInventory == null || SideBarPanelInventory == null)
             {
                 Logger.LogInfo("Auto pattern set up failed.");
@@ -123,6 +132,12 @@ namespace Dressmaker_AutoPattern
                 Logger.LogInfo("Auto Pattern Loaded.");
             }
 
+        }
+
+        public void SetDressPanelInventory()
+        {
+            if (DressPanelInventory == null)
+            DressPanelInventory = Resources.FindObjectsOfTypeAll<Dress>().FirstOrDefault();
         }
     }
 }
